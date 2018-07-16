@@ -1,0 +1,19 @@
+version: '2'
+services:
+  ## Web Based Cron Like Scheduler
+  cronicle:
+    cpu_shares: 256
+    mem_limit: 256M
+    container_name: cronicle-container
+    build: .
+    environment:
+      CRONICLE_ADMIN_USERNAME: admin
+      CRONICLE_ADMIN_PASSWORD: ChangeMe
+      CRONICLE_ADMIN_EMAIL: someone@example.com
+      CRONICLE_ENABLE_CLI_APIKEY: 1
+      MASTER_PING_TIMEOUT: 1
+    expose:
+     - 80
+    #volumes:
+    # - webcron-cronicle-data:/opt/cronicle/data
+
