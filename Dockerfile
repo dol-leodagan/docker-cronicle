@@ -45,4 +45,6 @@ RUN set -ex; \
 
 COPY scripts /
 
+VOLUME [ "/opt/cronicle/data" ]
+
 CMD [ "/entrypoint.sh" ]

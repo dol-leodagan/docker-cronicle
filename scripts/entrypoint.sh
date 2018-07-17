@@ -32,7 +32,7 @@ jq  " \
 export EDITOR="/edit_entry.sh"
 
 # Setup Data Storage
-if [ ! -d "data" ]; then
+if [ -z "$(ls -A "data")" ]; then
     node bin/storage-cli.js setup
     export CRONICLE_EDIT_FILTER='.items += [ {
       "privileges": {

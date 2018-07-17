@@ -13,11 +13,31 @@ services:
       CRONICLE_ENABLE_CLI_APIKEY: 1
       MASTER_PING_TIMEOUT: 1
       WEBSERVER_HTTPS_PORT: 8443
-      WEBSERVER_HTTPS: true
+      WEBSERVER_HTTPS: "true"
     ports:
      - 8443:8443
     expose:
      - 80
-    #volumes:
-    # - webcron-cronicle-data:/opt/cronicle/data
+    tmpfs:
+     - /opt/cronicle/data
+  ## Web Based Cron Like Scheduler with git-lfs and docker client
+  cronicle-git-volume-backup:
+    cpu_shares: 256
+    mem_limit: 256M
+    container_name: cronicle-git-volume-backup-container
+    build: ./git-volume-backup
+    environment:
+      CRONICLE_ADMIN_USERNAME: admin
+      CRONICLE_ADMIN_PASSWORD: ChangeMe
+      CRONICLE_ADMIN_EMAIL: someone@example
+      CRONICLE_ENABLE_CLI_APIKEY: 1
+      MASTER_PING_TIMEOUT: 1
+      WEBSERVER_HTTPS_PORT: 8444
+      WEBSERVER_HTTPS: "true"
+    ports:
+     - 8444:8444
+    expose:
+     - 80
+    tmpfs:
+     - /opt/cronicle/data
 
