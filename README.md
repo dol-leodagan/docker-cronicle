@@ -1,7 +1,21 @@
 # docker-cronicle
 Docker Image for Cronicle Scheduler
 
-Environment Variables :
+# Try It
+
+```
+docker run --rm -name cronicle -p 80:80 -p 443:443 -e MASTER_PING_TIMEOUT=1 leodagan/cronicle
+```
+
+Or with uncommon ports
+
+```
+docker run --rm -name cronicle -p 8080:8080 -p 8443:8443 -e MASTER_PING_TIMEOUT=1 -e WEBSERVER_HTTP_PORT=8080 -e WEBSERVER_HTTPS_PORT=8443 leodagan/cronicle
+```
+
+Bind ```/opt/cronicle/data``` for persistence
+
+# Environment Variables
 
 | Config Key | Default Value | Description |
 |------------|---------------|-------------|

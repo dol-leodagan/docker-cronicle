@@ -59,15 +59,11 @@ if [ -z "$(ls -A "data")" ]; then
 fi
 
 # Setup Admin Account
-if [ "${CRONICLE_ADMIN_USERNAME:-admin}" != "admin" ] || [ "${CRONICLE_ADMIN_PASSWORD}x" != "x" ]; then
-    node bin/storage-cli.js admin "${CRONICLE_ADMIN_USERNAME}" "${CRONICLE_ADMIN_PASSWORD}"
-fi
+node bin/storage-cli.js admin "${CRONICLE_ADMIN_USERNAME:-admin}" "${CRONICLE_ADMIN_PASSWORD:-admin}"
 
 # Set Administrator Mail
-if [ "${CRONICLE_ADMIN_EMAIL}x" != "x" ]; then
-    export CRONICLE_EDIT_FILTER=" .email = \"${CRONICLE_ADMIN_EMAIL}\""
-    node bin/storage-cli.js edit "users/${CRONICLE_ADMIN_USERNAME:-admin}"
-fi
+export CRONICLE_EDIT_FILTER=" .email = \"${CRONICLE_ADMIN_EMAIL:-example@localhost}\""
+node bin/storage-cli.js edit "users/${CRONICLE_ADMIN_USERNAME:-admin}"
 
 # Set Local API Key
 export CRONICLE_EDIT_FILTER=" .items |= map(if .title==\"Console CLI\" then .active=\"${CRONICLE_ENABLE_CLI_APIKEY:-0}\" else . end) "
