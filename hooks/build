@@ -1,0 +1,14 @@
+#!/bin/bash
+
+SOURCE_COMMIT="$(git rev-parse --short HEAD)"
+
+# Retrieve latest DOL Release
+curl -L -o jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 && chmod +x jq
+BUILD_VERSION="$(curl -s "https://api.github.com/repos/jhuckaby/Cronicle/releases/latest" | ./jq -r '.tag_name')"
+
+echo "Hook Build with values: VCS_REF:$SOURCE_COMMIT, BUILD_VERSION:$BUILD_VERSION, IMAGE_NAME:$IMAGE_NAME"
+docker build \
+  --build-arg VCS_REF="$SOURCE_COMMIT" \
+  --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+  --build-arg BUILD_VERSION="$BUILD_VERSION" \
+-t $IMAGE_NAME .

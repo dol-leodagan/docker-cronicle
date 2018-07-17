@@ -21,6 +21,7 @@ jq  " \
     .server_comm_use_hostnames = ${SERVER_COMM_USE_HOSTNAMES:-1} | \
     .WebServer.http_port = ${WEBSERVER_HTTP_PORT:-80} | \
     .WebServer.https_port = ${WEBSERVER_HTTPS_PORT:-443} | \
+    .WebServer.https = ${WEBSERVER_HTTPS:-true} | \
     .base_app_url = \"${BASE_APP_URL:-https://${HOSTNAME}:${WEBSERVER_HTTPS_PORT}}\" | \
     .master_ping_timeout = ${MASTER_PING_TIMEOUT:-60} \
     " conf/config.json \
@@ -47,7 +48,7 @@ if [ ! -d "data" ]; then
       "active": "0",
       "title": "Console CLI",
       "description": "Can be used from Console with /get_api_key.sh",
-      "id": "kjjocvnts01",
+      "id": "k'"$(tr -dc 'a-z0-9' < /dev/urandom | fold -w 10 | head -n 1)"'",
       "username": "'"${CRONICLE_ADMIN_USERNAME:-admin}"'",
       "modified": '"$(date +%s)"',
       "created": '"$(date +%s)"'

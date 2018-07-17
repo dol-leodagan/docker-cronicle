@@ -17,6 +17,7 @@ Environment Variables :
 | SERVER_COMM_USE_HOSTNAMES | 1 | Does Cronicle Comms use Hostnames instead of IP |
 | WEBSERVER_HTTP_PORT | 80 | Cronicle Webserver Public HTTP Port |
 | WEBSERVER_HTTPS_PORT | 443 | Cronicle Webserver Public HTTPS Port |
+| WEBSERVER_HTTPS | true | Enable Cronicle HTTPS Webserver |
 | MASTER_PING_TIMEOUT | 60 | Ping timeout joining existing pool beforme becoming Master |
 | CRONICLE_ADMIN_USERNAME | admin | Cronicle Admin Username |
 | CRONICLE_ADMIN_PASSWORD | admin | Cronicle Admin Password |
