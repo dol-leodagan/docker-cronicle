@@ -19,7 +19,7 @@ RUN set -ex; \
     # Get Runtime Packages
     \
     apk add --no-cache --update \
-        git-lfs docker; \
+        git-lfs docker acl; \
     \
     # Cleanup
     rm -rf /var/cache/* /tmp/* /var/log/* ~/.cache; \

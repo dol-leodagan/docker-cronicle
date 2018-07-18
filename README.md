@@ -1,6 +1,10 @@
 # docker-cronicle
 Docker Image for Cronicle Scheduler
 
+ld | latest | git-volume-backup |
+|-------|--------|-------------------|
+| [![Build status](https://img.shields.io/docker/build/leodagan/cronicle.svg)](https://hub.docker.com/r/leodagan/cronicle/) | [![Image Size](https://img.shields.io/microbadger/image-size/leodagan/cronicle:latest.svg)](https://microbadger.com/images/leodagan/cronicle:latest) [![Layers](https://img.shields.io/microbadger/layers/leodagan/cronicle:latest.svg)](https://microbadger.com/images/leodagan/cronicle:latest) | [![Image Size](https://img.shields.io/microbadger/image-size/leodagan/cronicle:git-volume-backup.svg)](https://microbadger.com/images/leodagan/cronicle:git-volume-backup) [![Layers](https://img.shields.io/microbadger/layers/leodagan/cronicle:git-volume-backup.svg)](https://microbadger.com/images/leodagan/cronicle:git-volume-backup) |
+
 # Try It
 
 ```
@@ -35,6 +39,6 @@ Bind ```/opt/cronicle/data``` for persistence
 | MASTER_PING_TIMEOUT | 60 | Ping timeout joining existing pool beforme becoming Master |
 | CRONICLE_ADMIN_USERNAME | admin | Cronicle Admin Username |
 | CRONICLE_ADMIN_PASSWORD | admin | Cronicle Admin Password |
-| CRONICLE_ADMIN_EMAIL | None | Cronicle Admin E-Mail |
+| CRONICLE_ADMIN_EMAIL | admin@localhost | Cronicle Admin E-Mail |
 | CRONICLE_ENABLE_CLI_APIKEY | 0 | Enable Default Console CLI Cronicle API Key |
 
