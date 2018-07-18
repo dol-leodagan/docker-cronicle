@@ -28,13 +28,11 @@ jq  " \
     > conf/config.json.edit \
 && mv -f conf/config.json.edit conf/config.json
 
-# Edit Values
-export EDITOR="/edit_entry.sh"
-
 # Setup Data Storage
-if [ -z "$(ls -A "data")" ]; then
-    node bin/storage-cli.js setup
-    export CRONICLE_EDIT_FILTER='.items += [ {
+if [ ! -d "data" ] || [ -z "$(ls -A "data")" ]; then
+    node bin/storage-cli.js setup \
+    && node bin/storage-cli.js get "global/api_keys/0/" \
+        | jq -r '.items += [ {
       "privileges": {
         "admin": 0,
         "create_events": 1,
@@ -52,21 +50,19 @@ if [ -z "$(ls -A "data")" ]; then
       "username": "'"${CRONICLE_ADMIN_USERNAME:-admin}"'",
       "modified": '"$(date +%s)"',
       "created": '"$(date +%s)"'
-    } ]'
-    node bin/storage-cli.js edit "global/api_keys/0/"
-    export CRONICLE_EDIT_FILTER=' .length = 1'
-    node  bin/storage-cli.js edit "global/api_keys"
+    } ]' \
+        | node bin/storage-cli.js put "global/api_keys/0/" \
+    && node bin/storage-cli.js get "global/api_keys" \
+        | jq -r ' .length = 1 ' \
+        | node  bin/storage-cli.js put "global/api_keys"
 fi
 
 # Setup Admin Account
-node bin/storage-cli.js admin "${CRONICLE_ADMIN_USERNAME:-admin}" "${CRONICLE_ADMIN_PASSWORD:-admin}"
-
-# Set Administrator Mail
-export CRONICLE_EDIT_FILTER=" .email = \"${CRONICLE_ADMIN_EMAIL:-example@localhost}\""
-node bin/storage-cli.js edit "users/${CRONICLE_ADMIN_USERNAME:-admin}"
+node bin/storage-cli.js admin "${CRONICLE_ADMIN_USERNAME:-admin}" "${CRONICLE_ADMIN_PASSWORD:-admin}" "${CRONICLE_ADMIN_EMAIL:-admin@localhost}"
 
 # Set Local API Key
-export CRONICLE_EDIT_FILTER=" .items |= map(if .title==\"Console CLI\" then .active=\"${CRONICLE_ENABLE_CLI_APIKEY:-0}\" else . end) "
-node bin/storage-cli.js edit "global/api_keys/0/"
+node bin/storage-cli.js get "global/api_keys/0/" \
+    | jq -r " .items |= map(if .title == \"Console CLI\" then .active=\"${CRONICLE_ENABLE_CLI_APIKEY:-0}\" else . end) " \
+    | node bin/storage-cli.js put "global/api_keys/0/"
 
 exec node --expose_gc --always_compact lib/main.js --foreground --echo --debug_level "${DEBUG_LEVEL:-4}" "$@"
