@@ -3,7 +3,7 @@ Docker Image for Cronicle Scheduler
 
 | Build | latest | git-volume-backup |
 |-------|--------|-------------------|
-| [![Build status](https://img.shields.io/docker/build/leodagan/cronicle.svg)](https://hub.docker.com/r/leodagan/cronicle/) | [![Image Size](https://img.shields.io/microbadger/image-size/leodagan/cronicle:latest.svg)](https://microbadger.com/images/leodagan/cronicle:latest) [![Layers](https://img.shields.io/microbadger/layers/leodagan/cronicle:latest.svg)](https://microbadger.com/images/leodagan/cronicle:latest) | [![Image Size](https://img.shields.io/microbadger/image-size/leodagan/cronicle:git-volume-backup.svg)](https://microbadger.com/images/leodagan/cronicle:git-volume-backup) [![Layers](https://img.shields.io/microbadger/layers/leodagan/cronicle:git-volume-backup.svg)](https://microbadger.com/images/leodagan/cronicle:git-volume-backup) |
+| [![Build status](https://img.shields.io/docker/build/leodagan/cronicle.svg)](https://hub.docker.com/r/leodagan/cronicle/) | [![Image Size](https://img.shields.io/microbadger/image-size/leodagan/cronicle/latest.svg)](https://microbadger.com/images/leodagan/cronicle:latest) [![Layers](https://img.shields.io/microbadger/layers/leodagan/cronicle/latest.svg)](https://microbadger.com/images/leodagan/cronicle:latest) | [![Image Size](https://img.shields.io/microbadger/image-size/leodagan/cronicle/git-volume-backup.svg)](https://microbadger.com/images/leodagan/cronicle:git-volume-backup) [![Layers](https://img.shields.io/microbadger/layers/leodagan/cronicle/git-volume-backup.svg)](https://microbadger.com/images/leodagan/cronicle:git-volume-backup) |
 
 # Try It
 
