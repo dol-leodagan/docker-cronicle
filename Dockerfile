@@ -5,7 +5,7 @@ ARG VCS_REF=local
 ARG BUILD_VERSION=latest
 
 LABEL org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.version=$BUILD_VERSION \
+      org.label-schema.version=$BUILD_VERSION-rc-$VCS_REF \
       org.label-schema.vcs-ref=$VCS_REF \
       org.label-schema.vcs-url="https://github.com/dol-leodagan/docker-cronicle.git" \
       org.label-schema.name="cronicle" \
