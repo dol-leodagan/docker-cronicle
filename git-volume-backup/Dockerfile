@@ -19,8 +19,10 @@ RUN set -ex; \
     # Get Runtime Packages
     \
     apk add --no-cache --update \
-        git-lfs docker acl; \
+        git-lfs docker; \
     \
     # Cleanup
     rm -rf /var/cache/* /tmp/* /var/log/* ~/.cache; \
     mkdir -p /var/cache/apk
+
+COPY scripts /usr/local/sbin

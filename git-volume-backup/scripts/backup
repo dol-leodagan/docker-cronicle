@@ -1,0 +1,358 @@
+#!/bin/sh
+
+##################
+# Script: Entrypoint for Backup Script
+# - Handles Docker Volume in backup scheduler
+# - Copy files from docker volumes to git repository with metadata
+# - Handles pause/stop of containers when required
+# - Restore snapshot from git to volume by stopping containers
+# Needs : 
+# - docker : CLI to query docker daemons
+# - git or git-lfs : for storing snapshots
+# - jq : json filtering CLI
+# - create an alpine docker image when extracting volume's file
+#   needs apk for acl (getfacl, setfacl) and coreutils (gnu find)
+
+export DEFAULT_DOCKER_SOCKET="unix:///var/run/docker.sock"
+
+. "$(dirname "$0")/git_backup_library.sh"
+. "$(dirname "$0")/docker_volume_library.sh"
+
+usage() {
+    echo "Usage:"
+    case $verb in
+        list)
+            echo "    list [volume|host|backup|commit|branch]  --  List volume, or host, or backup snapshot's branch"
+        ;;
+        backup_volume)
+            echo "    pull [host/]{volume} -- Pull a backup snapshot of volume"
+        ;;
+        restore_volume)
+            echo "    push [host/]{volume} {commit} -- Push a backup snapshot to volume"
+        ;;
+        *)
+            echo "  $(basename "$0") [option, ...] [verb]
+    Options
+    --host|-H {host[,...]}        -- Set host list to connect to
+    --config|-c {path}            -- Set path to JSON Config File
+
+    Verbs
+    list host                     -- List available host in config
+    list volume                   -- List volume from all hosts or filtered by --host
+    list [backup|commit|branch]   -- List backup availble for all hosts or filtered by --host
+    pull [host/]{volume}          -- Pull a backup snapshot of volume
+    push [host/]{volume} {commit} -- Push a backup snapshot to volume
+    help                          -- Display this help text
+"
+        ;;
+    esac
+}
+
+export BACKUP_TEMP_DIR="/tmp"
+
+while [ $# -gt 0 ]; do
+    case $1 in
+        --verbose|-v)
+            export verbose=1
+            shift 1
+        ;;
+        --host|-H)
+            if [ -z "$2" ]; then
+                usage
+                echo "Missing --host parameter" 1>&2
+                exit 2
+            fi
+            [ -z "$backup_host" ] && backup_host="$2"
+            shift 2
+        ;;
+        --config|-c)
+            if [ -z "$2" ]; then
+                usage
+                echo "Missing --config parameter" 1>&2
+                exit 2
+            fi
+            if [ ! -f "$2" ] || [ ! -r "$2" ]; then
+                usage
+                echo "Cannot read given configuration: --config='$2'" 1>&2
+                exit 10
+            fi
+
+            BACKUP_CONFIG="$(jq '.' -r "$2")"
+            export BACKUP_CONFIG
+            shift 2
+        ;;
+        list|ls)
+            if [ -n "$verb" ]; then
+                usage
+                echo "Can't use multiple Verbs with list (already have: $verb)" 1>&2
+                exit 2
+            fi
+            verb="list"
+            case $2 in
+                help|--help|-h)
+                    usage
+                    exit 2
+                ;;
+                volume)
+                    verb="list_volume"
+                    shift 2
+                ;;
+                host)
+                    verb="list_host"
+                    shift 2
+                ;;
+                backup|commit|branch)
+                    verb="list_backup"
+                    shift 2
+                ;;
+                '')
+                    verb="list_backup"
+                    if [ $# -lt 2 ]; then shift 1; else shift 2; fi
+                ;;
+                -*)
+                    # implicit empty arg with following options
+                    verb="list_backup"
+                    shift 1
+                ;;
+                *)
+                    usage
+                    echo "Wrong list type choose one of [volume|host|backup|commit|branch] or empty" 1>&2
+                    exit 2
+                ;;
+            esac
+        ;;
+        pull|push)
+            if [ -n "$verb" ]; then
+                usage
+                echo "Can't use multiple Verbs with $1  (already have: $verb)" 1>&2
+                exit 2
+            fi
+
+            if [ "$1" = "push" ]; then
+                verb="restore_volume"
+            else
+                verb="backup_volume"
+            fi
+
+            case $2 in
+                help|--help|-h)
+                    usage
+                    exit 2
+                ;;
+                ?*/?*)
+                    backup_volume="$(basename "$2")"
+                    backup_host="$(dirname "$2")"
+                    shift 2
+                ;;
+                ?*)
+                    backup_volume="$2"
+                    shift 2
+                ;;
+                *)
+                    usage
+                    echo "Missing volume name for $1" 1>&2
+                    exit 2
+                ;;
+            esac
+            if [ "$verb" = "restore_volume" ]; then
+                case $1 in
+                    help|--help|-h)
+                        usage
+                        exit 2
+                    ;;
+                    ?*)
+                        commit_ref="$1"
+                        shift 1
+                    ;;
+                    *)
+                        usage
+                        echo "Missing commit ref for push" 1>&2
+                        exit 2
+                    ;;
+                esac
+            fi
+        ;;
+        help|--help|-h|*)
+            usage
+            exit 2
+        ;;
+    esac
+done
+
+check_for_duplicate_volume_name() {
+    host="$1"
+    volume="$2"
+
+    IFS=','
+    for uniquehost in $host; do
+        volumes=$(list_volume "$uniquehost" "" "1")
+        if ! jq -r -n -e "$volumes"' | ."'"$uniquehost"'"[] | select(.Name == "'"$volume"'" and .Driver == "local")' > /dev/null; then
+            continue
+        fi
+        if [ -n "$volume_to_backup" ]; then
+            if [ -n "$duplicate" ]; then
+                duplicate="$duplicates:${uniquehost}/${volume}"
+            else
+                duplicates="${host_to_backup}/${volume_to_backup}:${uniquehost}/${volume}"
+            fi
+            continue
+        fi
+        host_to_backup="$uniquehost"
+        volume_to_backup="$volume"
+    done
+    unset IFS
+
+    if [ -n "$duplicates" ]; then
+        echo "Ambiguous Volume Name: $volume" 1>&2
+        echo "    Did you mean ?" 1>&2
+        IFS=':'
+        for ambiguous in $duplicates; do
+            echo "    $ambiguous" 1>&2
+        done
+        unset IFS
+        return 10
+    fi
+
+    if [ -z "$host_to_backup" ] || [ -z "$volume_to_backup" ]; then
+        echo "Volume: $volume, could not be found on host(s): $host" 1>&2
+        return 10
+    fi
+
+    echo "$host_to_backup"
+}
+
+backup_volume() {
+    host="$1"
+    volume="$2"
+    verbose="$3"
+
+    # gather one volume matching
+    if host_to_backup="$(check_for_duplicate_volume_name "$host" "$volume")"; then
+        volume_to_backup="$volume"
+    else
+        return $?
+    fi
+
+    if ! temp_workdir="$(mktemp -p "$BACKUP_TEMP_DIR" -d)"; then
+        echo "Error while creating temporary working directory ($temp_workdir)" 1>&2
+        return 10
+    fi
+
+    error=0
+    begin="$(date +%s)"
+    # create temp git
+    if __create_git_temporary_repository "$temp_workdir" "${host_to_backup}/${volume_to_backup}"; then
+        # Pause Container before backup
+        if containers=$(__list_container_using_volume "$host_to_backup" "$volume_to_backup" ".State.Running and .State.Paused == false" "true") && \
+            __docker_container_command "$host_to_backup" "$containers" "pause"; then
+            # Backup Container to Local Git
+            if __backup_volume_to_local "$host_to_backup" "$volume_to_backup" "$temp_workdir"; then
+                __docker_container_command "$host_to_backup" "$containers" "unpause"
+                # Push Modification
+                if __rollup_dotgit_dir "$temp_workdir" && \
+                    __add_commit_and_push "$temp_workdir" "${host_to_backup}/${volume_to_backup}"; then
+                    end="$(date +%s)"
+                    time=$((end - begin))
+                    echo "Backup Pull for ${host_to_backup}/${volume_to_backup} finished successfully at $(date) - Elapsed: $time sec(s)"
+                else
+                    if [ $? -eq 100 ]; then
+                        end="$(date +%s)"
+                        time=$((end - begin))
+                        echo "Nothing changed since last backup, aborting at $(date) - Elapsed: $time sec(s)" 1>&2
+                    else
+                        echo "Couldn't add volume (${host_to_backup}/${volume_to_backup}) after backup" 1>&2
+                        error=50
+                    fi
+                fi
+            else
+                __docker_container_command "$host_to_backup" "$containers" "unpause"
+                echo "Couldn't Backup volume (${host_to_backup}/${volume_to_backup}) to local repository: $temp_workdir" 1>&2
+                error=30
+            fi
+        else
+            echo "Couldn't Pause Containers using volume (${host_to_backup}/${volume_to_backup})" 1>&2
+            __docker_container_command "$host_to_backup" "$containers" "unpause"
+            error=40
+        fi
+        rm -rf "$temp_workdir" || echo "Couldn't delete git temporary repository: $temp_workdir" 1>&2
+    else
+        echo "Couldn't create git temporary repository: $temp_workdir" 1>&2
+        rm -rf "$temp_workdir" || echo "Couldn't delete git temporary repository: $temp_workdir" 1>&2
+        error=20
+    fi
+
+    end="$(date +%s)"
+    time=$((end - begin))
+    [ $error -ne 0 ] && echo "Backup Pull finished with error(s) at $(date) - Elapsed: $time sec(s)"
+
+    return $error
+}
+
+restore_volume() {
+    host="$1"
+    volume="$2"
+    verbose="$3"
+    commit="$4"
+
+    # gather one volume matching
+    if host_to_backup="$(check_for_duplicate_volume_name "$host" "$volume")"; then
+        volume_to_backup="$volume"
+    else
+        return $?
+    fi
+
+    if ! temp_workdir="$(mktemp -p "$BACKUP_TEMP_DIR" -d)"; then
+        echo "Error while creating temporary working directory ($temp_workdir)" 1>&2
+        return 10
+    fi
+
+    error=0
+    begin="$(date +%s)"
+    # create temp git
+    if __create_git_temporary_repository_and_fetch "$temp_workdir" "${host_to_backup}/${volume_to_backup}" "$commit" && \
+        __unroll_dotgit_dir "$temp_workdir"; then
+        # Stop Container before restore
+        if running_containers=$(__list_container_using_volume "$host_to_backup" "$volume_to_backup" ".State.Running and .State.Paused == false") && \
+            paused_containers=$(__list_container_using_volume "$host_to_backup" "$volume_to_backup" ".State.Paused") && \
+            stop_containers=$(__list_container_using_volume "$host_to_backup" "$volume_to_backup" ".State.Running") && \
+            __docker_container_command "$host_to_backup" "${paused_containers}" "unpause" && \
+            __docker_container_command "$host_to_backup" "${stop_containers}" "stop"; then
+            # Restore Volume from local git
+            if __restore_volume_to_remote "$host_to_backup" "$volume_to_backup" "$temp_workdir"; then
+                __docker_container_command "$host_to_backup" "$running_containers" "start"
+                end="$(date +%s)"
+                time=$((end - begin))
+                echo "Push for ${host_to_backup}/${volume_to_backup} finished successfully at $(date) - Elapsed: $time sec"
+            else
+                echo "Errors while pushing archive, not restarting containers !" 1>&2
+                echo "Couldn't Backup volume (${host_to_backup}/${volume_to_backup}) to local repository: $temp_workdir" 1>&2
+                error=30
+            fi
+        else
+            echo "Couldn't Stop Containers using volume (${host_to_backup}/${volume_to_backup})" 1>&2
+             __docker_container_command "$host_to_backup" "$running_containers" "start"
+            error=40
+        fi
+        rm -rf "$temp_workdir" || echo "Couldn't delete git temporary repository: $temp_workdir" 1>&2
+    else
+        echo "Couldn't create git temporary repository: $temp_workdir" 1>&2
+        rm -rf "$temp_workdir" || echo "Couldn't delete git temporary repository: $temp_workdir" 1>&2
+        error=20
+    fi
+
+}
+
+[ -z "$verb" ] && verb=usage
+
+if [ -z "${BACKUP_CONFIG}" ] || jq -e -n -r "${BACKUP_CONFIG}"' | any(.host == "'"$DEFAULT_DOCKER_SOCKET"'") | . == false' > /dev/null; then
+    BACKUP_CONFIG="$(default_socket | jq -r ". + ${BACKUP_CONFIG:-{}}")"
+else
+    BACKUP_CONFIG="$(jq -n -r "${BACKUP_CONFIG}")"
+fi
+
+export BACKUP_CONFIG
+
+test_config "$backup_host" || exit 10
+
+$verb "${backup_host:-$(jq -r -n "$BACKUP_CONFIG"' | keys | join(",")')}" "$backup_volume" "${verbose:-0}" "$commit_ref"
+
