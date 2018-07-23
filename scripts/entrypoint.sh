@@ -30,39 +30,10 @@ jq  " \
 
 # Setup Data Storage
 if [ ! -d "data" ] || [ -z "$(ls -A "data")" ]; then
-    node bin/storage-cli.js setup \
-    && node bin/storage-cli.js get "global/api_keys/0/" \
-        | jq -r '.items += [ {
-      "privileges": {
-        "admin": 0,
-        "create_events": 1,
-        "edit_events": 1,
-        "delete_events": 1,
-        "run_events": 1,
-        "abort_events": 1,
-        "state_update": 1
-      },
-      "key": "'"$(tr -dc 'a-f0-9' < /dev/urandom | fold -w 32 | head -n 1)"'",
-      "active": "0",
-      "title": "Console CLI",
-      "description": "Can be used from Console with /get_api_key.sh",
-      "id": "k'"$(tr -dc 'a-z0-9' < /dev/urandom | fold -w 10 | head -n 1)"'",
-      "username": "'"${CRONICLE_ADMIN_USERNAME:-admin}"'",
-      "modified": '"$(date +%s)"',
-      "created": '"$(date +%s)"'
-    } ]' \
-        | node bin/storage-cli.js put "global/api_keys/0/" \
-    && node bin/storage-cli.js get "global/api_keys" \
-        | jq -r ' .length = 1 ' \
-        | node  bin/storage-cli.js put "global/api_keys"
+    node bin/storage-cli.js setup
 fi
 
 # Setup Admin Account
 node bin/storage-cli.js admin "${CRONICLE_ADMIN_USERNAME:-admin}" "${CRONICLE_ADMIN_PASSWORD:-admin}" "${CRONICLE_ADMIN_EMAIL:-admin@localhost}"
-
-# Set Local API Key
-node bin/storage-cli.js get "global/api_keys/0/" \
-    | jq -r " .items |= map(if .title == \"Console CLI\" then .active=\"${CRONICLE_ENABLE_CLI_APIKEY:-0}\" else . end) " \
-    | node bin/storage-cli.js put "global/api_keys/0/"
 
 exec node --expose_gc --always_compact lib/main.js --foreground --echo --debug_level "${DEBUG_LEVEL:-4}" "$@"

@@ -40,5 +40,5 @@ Bind ```/opt/cronicle/data``` for persistence
 | CRONICLE_ADMIN_USERNAME | admin | Cronicle Admin Username |
 | CRONICLE_ADMIN_PASSWORD | admin | Cronicle Admin Password |
 | CRONICLE_ADMIN_EMAIL | admin@localhost | Cronicle Admin E-Mail |
-| CRONICLE_ENABLE_CLI_APIKEY | 0 | Enable Default Console CLI Cronicle API Key |
+| TZ | UTC | Timezone for Container |
 

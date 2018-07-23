@@ -21,7 +21,7 @@ RUN set -ex; \
     # Get Runtime Packages
     \
     apk add --no-cache --update \
-        bash curl tar procps jq ca-certificates; \
+        bash curl tar procps jq ca-certificates tzdata; \
     \
     # Update Certs
     update-ca-certificates; \
